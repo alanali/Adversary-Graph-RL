@@ -1,11 +1,11 @@
 import numpy as np
 import random
 
-gamma = 0.9 # Discount factor 
+gamma = 0.7 # Discount factor 
 alpha = 0.1 # Learning rate
 
 # Example rewards table
-rewards = np.array([[0,1,1,1,0,0,0,0,0,0],
+r = np.array([[0,1,1,1,0,0,0,0,0,0],
 					[0,0,0,0,1,0,0,0,0,0],
 					[0,1,0,0,0,0,0,0,0,0],
 					[0,0,0,0,0,1,1,0,0,0],
@@ -16,19 +16,23 @@ rewards = np.array([[0,1,1,1,0,0,0,0,0,0],
 					[0,0,0,0,0,0,0,1,0,0],
 					[0,0,0,0,0,0,0,0,0,0]])
 
+# Example graph dictionary
+g =  {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5, 8, 9], 6: [6, 8, 9], 7: [7, 8, 9], 8: [8], 9: [9, 13], 10: [10],
+            11: [11, 12, 13], 12: [12], 13: [13, 14], 14: [14, 15, 16, 17, 18, 19], 15: [15, 20], 16: [16, 20], 17: [17, 21], 18: [18, 21], 19: [19, 21], 
+            20: [20, 22], 21: [21, 22], 22: [22, 23, 24, 25], 23: [23], 24: [24, 27], 25: [25, 26, 27], 26: [26], 27: [27, 28], 28: [27, 28, 29], 
+            29: [28, 29, 30, 32], 30: [29, 30, 31], 31: [30, 31], 32: [32]}
+
 class QAgent():
-    # Initialize alpha, gamma, states, actions, rewards, and Q-values
+    # Initialize alpha, gamma, rewards, and Q-values
 	def __init__(self, alpha, gamma, rewards, random=False, Q=[], risks=[]):
 		self.gamma = gamma  
 		self.alpha = alpha
-		self.size = len(rewards[0])
+		self.rewards = self.create_rewards_matrix(rewards)
+		self.size = len(self.rewards[0])
 		if random:
-			self.rewards = rewards
-			self.generate_rewards(self.rewards)
-		else:
-			self.rewards = rewards
+			self.generate_random_rewards(self.rewards)
 		if risks == []:
-			self.risks = self.generate_risks(rewards)
+			self.risks = self.generate_risks(self.rewards)
 		else:
 			self.risks = risks
 		self.actions = list(range(self.size))
@@ -37,7 +41,14 @@ class QAgent():
 		else:
 			self.Q = Q
 
-	def generate_rewards(self, r):
+	def create_rewards_matrix(self, graph):
+		matrix = [[0 for _ in range(len(graph))] for _ in range(len(graph))]
+		for node, neighbors in graph.items():
+			for neighbor in neighbors:
+				matrix[node - 1][neighbor - 1] = 1
+		return matrix
+
+	def generate_random_rewards(self, r):
 		for x in range(self.size):
 			for y in range(self.size):
 				if r[x][y] == 1:
@@ -95,7 +106,7 @@ class QAgent():
 	# Helper function for displaying matrix
 	def print_matrix(self, matrix):
 		for row in matrix:
-			print("[", end="    ")
+			print("[", end="  ")
 			for val in row:
 				rounded = round(val, 1)
 				spaces = " " * (5 - len(str(rounded)))
@@ -104,20 +115,5 @@ class QAgent():
 		print()
 
 
-def create_adjacency_matrix(graph):
-	# First node must be 1
-	matrix = [[0 for _ in range(len(graph))] for _ in range(len(graph))]
-	for node, neighbors in graph.items():
-		for neighbor in neighbors:
-			matrix[node - 1][neighbor - 1] = 1
-	return matrix
-
-g =  {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5, 8, 9], 6: [6, 8, 9], 7: [7, 8, 9], 8: [8], 9: [9, 13], 10: [10],
-            11: [11, 12, 13], 12: [12], 13: [13, 14], 14: [14, 15, 16, 17, 18, 19], 15: [15, 20], 16: [16, 20], 17: [17, 21], 18: [18, 21], 19: [19, 21], 
-            20: [20, 22], 21: [21, 22], 22: [22, 23, 24, 25], 23: [23], 24: [24, 27], 25: [25, 26, 27], 26: [26], 27: [27, 28], 28: [27, 28, 29], 
-            29: [28, 29, 30, 32], 30: [29, 30, 31], 31: [30, 31], 32: [32]}
-
-big_r = create_adjacency_matrix(g)
-
-qagent = QAgent(alpha, gamma, big_r, random = False)
+qagent = QAgent(alpha, gamma, g, random = False)
 qagent.training(1, 31, 100000)
