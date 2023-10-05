@@ -2,9 +2,9 @@ import numpy as np
 import random
 
 gamma = 0.9 # Discount factor 
-alpha = 0.1 # Learning rate 
-epsilon = 0.1
+alpha = 0.1 # Learning rate
 
+# Example rewards table
 rewards = np.array([[0,1,1,1,0,0,0,0,0,0],
 					[0,0,0,0,1,0,0,0,0,0],
 					[0,1,0,0,0,0,0,0,0,0],
@@ -77,30 +77,10 @@ class QAgent():
 		route = [str(current_state + 1)]
 		next_state = 0
 		while(next_state != end_location):
-			print(next_state)
 			next_state = np.argmax(Q[current_state, ])
 			route.append(str(next_state + 1))
 			current_state = next_state
 		self.print_helper(start_location + 1, end_location + 1, route)
-		# paths = [[], [], []]
-		# for i in range(3):
-		# 	start = start_location
-		# 	route = paths[i]
-		# 	route.append(str(start))
-		# 	while start != end_location:
-		# 		# Epsilon-greedy exploration
-		# 		valid_actions = [a for a in range(self.size) if self.rewards[start][a] > 0]
-		# 		if valid_actions == []:
-		# 			break
-		# 		elif np.random.rand() < epsilon:
-		# 			next_state = np.random.choice(valid_actions)
-		# 		else:
-		# 			next_state = np.argmax(Q[start, :])
-		# 		start = next_state
-		# 		route.append(str(start - 1))
-		# 	if route[-1] == end_location:
-		# 		paths[i] = route
-		# self.print_helper(start_location, end_location, min(paths, key=len))
 	
 	def print_helper(self, start, end, r):
 		print("Rewards Table:")
