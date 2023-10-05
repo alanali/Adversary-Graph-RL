@@ -1,0 +1,143 @@
+import numpy as np
+import random
+
+gamma = 0.9 # Discount factor 
+alpha = 0.1 # Learning rate 
+epsilon = 0.1
+
+rewards = np.array([[0,1,1,1,0,0,0,0,0,0],
+					[0,0,0,0,1,0,0,0,0,0],
+					[0,1,0,0,0,0,0,0,0,0],
+					[0,0,0,0,0,1,1,0,0,0],
+					[0,0,0,0,0,0,0,0,0,0],
+					[0,0,0,0,0,0,0,1,1,0],
+					[0,0,0,0,0,0,0,0,0,1],
+					[0,0,0,0,0,0,0,0,0,0],
+					[0,0,0,0,0,0,0,1,0,0],
+					[0,0,0,0,0,0,0,0,0,0]])
+
+class QAgent():
+    # Initialize alpha, gamma, states, actions, rewards, and Q-values
+	def __init__(self, alpha, gamma, rewards, random=False, Q=[], risks=[]):
+		self.gamma = gamma  
+		self.alpha = alpha
+		self.size = len(rewards[0])
+		if random:
+			self.rewards = rewards
+			self.generate_rewards(self.rewards)
+		else:
+			self.rewards = rewards
+		if risks == []:
+			self.risks = self.generate_risks(rewards)
+		else:
+			self.risks = risks
+		self.actions = list(range(self.size))
+		if Q == []:
+			self.Q = np.random.rand(self.size, self.size) * 0
+		else:
+			self.Q = Q
+
+	def generate_rewards(self, r):
+		for x in range(self.size):
+			for y in range(self.size):
+				if r[x][y] == 1:
+					r[x][y] = round(random.uniform(0, 10))
+
+	def generate_risks(self, r):
+		risks = np.array(np.zeros([self.size,self.size]))
+		for x in range(self.size):
+			for y in range(self.size):
+				if r[x][y] > 0:
+					risks[x][y] = round(random.uniform(0, 1), 2)
+		return risks
+	
+	def training(self, start_location, end_location, iterations):
+		rewards_new = np.copy(self.rewards)
+		start_location -= 1
+		end_location -= 1
+		rewards_new[end_location, end_location] = 50
+		
+		for i in range(iterations):
+			current_state = np.random.randint(0,self.size) 
+			playable_actions = []
+			for j in range(self.size):
+				if rewards_new[current_state][j] > 0:
+					playable_actions.append(j)
+			if playable_actions:
+				next_state = np.random.choice(playable_actions)
+				TD = rewards_new[current_state][next_state] + self.gamma * np.max(self.Q[next_state, :]) - self.Q[current_state][next_state]
+				
+				self.Q[current_state][next_state] += self.alpha * TD
+		# Get the route 
+		self.get_optimal_route(start_location, end_location, self.Q)
+		
+	# Get the optimal route
+	def get_optimal_route(self, start_location, end_location, Q):
+		current_state = start_location
+		route = [str(current_state + 1)]
+		next_state = 0
+		while(next_state != end_location):
+			print(next_state)
+			next_state = np.argmax(Q[current_state, ])
+			route.append(str(next_state + 1))
+			current_state = next_state
+		self.print_helper(start_location + 1, end_location + 1, route)
+		# paths = [[], [], []]
+		# for i in range(3):
+		# 	start = start_location
+		# 	route = paths[i]
+		# 	route.append(str(start))
+		# 	while start != end_location:
+		# 		# Epsilon-greedy exploration
+		# 		valid_actions = [a for a in range(self.size) if self.rewards[start][a] > 0]
+		# 		if valid_actions == []:
+		# 			break
+		# 		elif np.random.rand() < epsilon:
+		# 			next_state = np.random.choice(valid_actions)
+		# 		else:
+		# 			next_state = np.argmax(Q[start, :])
+		# 		start = next_state
+		# 		route.append(str(start - 1))
+		# 	if route[-1] == end_location:
+		# 		paths[i] = route
+		# self.print_helper(start_location, end_location, min(paths, key=len))
+	
+	def print_helper(self, start, end, r):
+		print("Rewards Table:")
+		self.print_matrix(self.rewards)
+		print("Risk Table:")
+		self.print_matrix(self.risks)
+		print("Q-Table:")
+		self.print_matrix(self.Q)
+		print("Optimal path from", start, "to", end, ":")
+		print(" -> ".join(r))
+
+	# Helper function for displaying matrix
+	def print_matrix(self, matrix):
+		for row in matrix:
+			print("[", end="    ")
+			for val in row:
+				rounded = round(val, 1)
+				spaces = " " * (5 - len(str(rounded)))
+				print(rounded, end=spaces)
+			print("]")
+		print()
+
+
+def create_adjacency_matrix(graph):
+	# First node must be 1
+	matrix = [[0 for _ in range(len(graph))] for _ in range(len(graph))]
+	for node, neighbors in graph.items():
+		for neighbor in neighbors:
+			matrix[node - 1][neighbor - 1] = 1
+	return matrix
+
+g =  {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5, 8, 9], 6: [6, 8, 9], 7: [7, 8, 9], 8: [8], 9: [9, 13], 10: [10],
+            11: [11, 12, 13], 12: [12], 13: [13, 14], 14: [14, 15, 16, 17, 18, 19], 15: [15, 20], 16: [16, 20], 17: [17, 21], 18: [18, 21], 19: [19, 21], 
+            20: [20, 22], 21: [21, 22], 22: [22, 23, 24, 25], 23: [23], 24: [24, 27], 25: [25, 26, 27], 26: [26], 27: [27, 28], 28: [27, 28, 29], 
+            29: [28, 29, 30, 32], 30: [29, 30, 31], 31: [30, 31], 32: [32]}
+
+big_r = create_adjacency_matrix(g)
+
+qagent = QAgent(alpha, gamma, big_r, random = False)
+qagent.training(1, 31, 100000)
