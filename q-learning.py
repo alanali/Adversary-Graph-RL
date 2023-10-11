@@ -21,7 +21,7 @@ MAX_RUNS = 10
 
 class QAgent():
     # Initialize alpha, gamma, rewards, and Q-values
-	def __init__(self, alpha, gamma, graph, consequence=None, random=False, risks=None):
+	def __init__(self, alpha, gamma, graph, Q=None, consequence=None, random=False, risks=None):
 		self.gamma = gamma  
 		self.alpha = alpha
 		self.rewards = self.create_rewards_matrix(graph)
@@ -37,7 +37,10 @@ class QAgent():
 		else:
 			self.risks = risks
 		self.actions = list(range(self.size))
-		self.Q = np.random.rand(self.size, self.size) * 0
+		if Q is None:
+			self.Q = np.zeros((self.size, self.size))
+		else:
+			self.Q = Q
 
 	def create_rewards_matrix(self, graph):
 		matrix = [[0 for _ in range(len(graph))] for _ in range(len(graph))]
@@ -62,9 +65,7 @@ class QAgent():
 	
 	def training(self, start_location, end_location, iterations):
 		rewards_new = np.copy(self.rewards)
-		start_location -= 1
-		end_location -= 1
-		rewards_new[end_location, end_location] = 50
+		rewards_new[end_location - 1, end_location - 1] = 50
 		
 		for i in range(iterations):
 			current_state = np.random.randint(0,self.size) 
@@ -82,19 +83,22 @@ class QAgent():
 				TD = risk_reward + self.gamma * np.max(self.Q[next_state, :]) - self.Q[current_state][next_state]
 				self.Q[current_state][next_state] += self.alpha * TD
 		self.get_optimal_route(start_location, end_location, self.Q)
+		return self.Q
 		
 	def get_optimal_route(self, start_location, end_location, Q):
-		current_state = start_location
+		start = start_location - 1
+		end = end_location - 1
+		current_state = start
 		route = [str(current_state + 1)]
 		next_state = 0
 		count = 0
-		while(next_state != end_location) and count < MAX_RUNS:
+		while(next_state != end) and count < MAX_RUNS:
 			next_state = np.argmax(Q[current_state, ])
 			route.append(str(next_state + 1))
 			current_state = next_state
 			count += 1
-		success = True if (end_location + 1) == int(route[-1]) else False
-		self.print_helper(start_location + 1, end_location + 1, route, success)
+		success = True if end_location == int(route[-1]) else False
+		self.print_helper(start_location, end_location, route, success)
 	
 	def print_helper(self, start, end, r, success):
 		if success:
@@ -112,6 +116,7 @@ class QAgent():
 			print("FAILED")
 			print("Could not find path from", start, "to", end)
 			print(" -> ".join(r))
+		print()
 
 	# Helper function for displaying matrix
 	def print_matrix(self, matrix):
@@ -138,8 +143,7 @@ g = {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5,
 
 print("NO CONSEQUENCE")
 qagent = QAgent(alpha, gamma, g)
-qagent.training(1, 22, 100000)
+trainedQ = qagent.training(27, 31, 100000)
 
 print("\n\nNEG CONSEQUENCE")
-qagent = QAgent(alpha, gamma, g, consequence="neg")
-qagent.training(1, 22, 100000)
+qagent.get_optimal_route(27, 31, trainedQ)
