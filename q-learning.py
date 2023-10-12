@@ -151,8 +151,6 @@ gamma = 0.7 # Discount factor
 
 g = {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5, 8, 9], 6: [6, 8, 9], 7: [7, 8, 9], 8: [8], 9: [9, 13], 10: [10], 11: [11, 12, 13], 12: [12], 13: [13, 14], 14: [14, 15, 16, 17, 18, 19], 15: [15, 20], 16: [16, 20], 17: [17, 21], 18: [18, 21], 19: [19, 21], 20: [20, 22], 21: [21, 22], 22: [22, 23, 24, 25], 23: [23], 24: [24, 27], 25: [25, 26, 27], 26: [26], 27: [27, 28], 28: [27, 28, 29], 29: [28, 29, 30, 32], 30: [29, 30, 31], 31: [30, 31], 32: [32]}
 
-runs = list(range(1000, 11001, 500))
-
 def success_rate(alpha, gamma, graph, con, start, end, reps):
 	data = []
 	times = []
@@ -167,73 +165,79 @@ def success_rate(alpha, gamma, graph, con, start, end, reps):
 		end_time = time.time()
 		t = end_time - start_time
 		print(f"Finished {r} iterations in {t:.2f} seconds")
-		data.append([r, count])
-		times.append([r, t])
+		data.append([r/1000, count])
+		times.append([r/1000, t])
 	return data, times
 
-def sigmoid(x, a, b, c):
-    return a / (1 + np.exp(-b * (x - c)))
+def sigmoid(x, L ,x0, k, b):
+    y = L / (1 + np.exp(-k*(x-x0))) + b
+    return y
+
+def calculate_r_squared(y_observed, y_predicted):
+    ss_total = np.sum((y_observed - np.mean(y_observed))**2)
+    ss_residual = np.sum((y_observed - y_predicted)**2)
+    r_squared = 1 - (ss_residual / ss_total)
+    return r_squared
 
 def plot_list(data):
 	x_values = [point[0] for point in data]
 	y_values = [point[1] for point in data]
-	# Initial guesses for parameters
-	initial_guesses = [max(y_values), np.median(x_values), 1.0]
-	try:
-		params, covariance = curve_fit(sigmoid, x_values, y_values, p0=initial_guesses, method='trf')
-		y_fit = sigmoid(x_values, *params)
+	initial_guesses = [max(y_values), np.median(x_values), 1, min(y_values)]
+	params, covariance = curve_fit(sigmoid, x_values, y_values, p0=initial_guesses)
+	y_fit = sigmoid(x_values, *params)
 
-		plt.scatter(x_values, y_values, label='Data Points')
-		plt.plot(x_values, y_fit, color='red', label='Sigmoid Fit')
-		plt.legend()
-		return plt
-	except Exception as e:
-		print(f"Error: {e}")
-		return None
+	r_squared = calculate_r_squared(y_values, y_fit)
+	plt.annotate(f'R-squared: {r_squared:.2f}', xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
 
-normal = success_rate(alpha, gamma, g, None, 1, 31, runs)
-normal_rate = plot_list(normal[0])
-normal_rate.ylim(0, 100)
-normal_rate.xlabel('Iterations')
-normal_rate.ylabel('Success Rate (%)')
-normal_rate.title('Success Rate Based on Iterations')
-normal_rate.show()
+	plt.scatter(x_values, y_values, label='Data Points')
+	plt.plot(x_values, y_fit, color='red', label='Sigmoid Fit')
+	return plt
 
-normal_time = plot_list(normal[1])
-normal_time.ylim(0, 20)
-normal_time.xlabel('Iterations')
-normal_time.ylabel('Time (seconds)')
-normal_time.title('Algorithm Runtime Based on Iterations')
-normal_time.show()
+runs = list(range(1000, 35001, 1000))
+
+# normal = success_rate(alpha, gamma, g, None, 1, 31, runs)
+# normal_rate = plot_list(normal[0])
+# normal_rate.ylim(0, 100)
+# normal_rate.xlabel('Iterations (Thousands)')
+# normal_rate.ylabel('Success Rate (%)')
+# normal_rate.title('Success Rate Based on Iterations')
+# normal_rate.show()
+
+# normal_time = plot_list(normal[1])
+# normal_time.ylim(0, 20)
+# normal_time.xlabel('Iterations (Thousands)')
+# normal_time.ylabel('Time (seconds)')
+# normal_time.title('Algorithm Runtime Based on Iterations')
+# normal_time.show()
 
 
 # neg = success_rate(alpha, gamma, g, "neg", 1, 31, runs)
 # neg_rate = plot_list(neg[0])
 # neg_rate.ylim(0, 100)
-# neg_rate.xlabel('Iterations')
+# neg_rate.xlabel('Iterations (Thousands)')
 # neg_rate.ylabel('Success Rate (%)')
 # neg_rate.title('Success Rate Based on Iterations (Neg Consequences)')
 # neg_rate.show()
 
 # neg_time = plot_list(neg[1])
-# neg_time.ylim(0, 20)
-# neg_time.xlabel('Iterations')
+# neg_time.ylim(0, 60)
+# neg_time.xlabel('Iterations (Thousands)')
 # neg_time.ylabel('Time (seconds)')
 # neg_time.title('Algorithm Runtime Based on Iterations (Neg Consequences)')
 # neg_time.show()
 
 
-# neg_frac = success_rate(alpha, gamma, g, "neg-frac", 1, 31, runs)
-# negfrac_rate = plot_list(neg_frac[0])
-# negfrac_rate.ylim(0, 100)
-# negfrac_rate.xlabel('Iterations')
-# negfrac_rate.ylabel('Success Rate (%)')
-# negfrac_rate.title('Success Rate Based on Iterations (NegFrac Consequences)')
-# negfrac_rate.show()
+neg_frac = success_rate(alpha, gamma, g, "neg-frac", 1, 31, runs)
+negfrac_rate = plot_list(neg_frac[0])
+negfrac_rate.ylim(0, 100)
+negfrac_rate.xlabel('Iterations (Thousands)')
+negfrac_rate.ylabel('Success Rate (%)')
+negfrac_rate.title('Success Rate Based on Iterations (-0.5 Consequences)')
+negfrac_rate.show()
 
-# negfrac_time = plot_list(neg_frac[1])
-# negfrac_time.ylim(0, 20)
-# negfrac_time.xlabel('Iterations')
-# negfrac_time.ylabel('Time (seconds)')
-# negfrac_time.title('Algorithm Runtime Based on Iterations (NegFrac Consequences)')
-# negfrac_time.show()
+negfrac_time = plot_list(neg_frac[1])
+negfrac_time.ylim(0, 60)
+negfrac_time.xlabel('Iterations (Thousands)')
+negfrac_time.ylabel('Time (seconds)')
+negfrac_time.title('Algorithm Runtime Based on Iterations (-0.5 Consequences)')
+negfrac_time.show()
