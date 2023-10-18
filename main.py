@@ -32,10 +32,10 @@ def success_rate(alpha, gamma, graph, con, start, end, reps):
 		start_time = time.time()
 		for i in range(100):
 			agent = QAgent(alpha, gamma, graph, consequence=con, random=True)
-			success = agent.training(start, end, r)[0]
-			if success:
+			ret = agent.training(start, end, r)
+			if ret[0]:
 				count += 1
-				reward += agent.training(start, end, r)[1]
+				reward += ret[1]
 		end_time = time.time()
 		t = end_time - start_time
 		print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
@@ -43,12 +43,17 @@ def success_rate(alpha, gamma, graph, con, start, end, reps):
 		times.append([r/1000, t])
 		if count != 0:
 			rewards.append([r/1000, reward/count])
+		else:
+			rewards.append([r/1000, 0])
 	print(rewards)
 	return data, rewards, times
 
 def sigmoid(x, L ,x0, k, b):
     y = L / (1 + np.exp(-k*(x-x0))) + b
     return y
+
+def exponential(x, a, b, c):
+    return a * np.exp(b * x) + c
 
 def calculate_r_squared(y_actual, y_predicted):
 	mean_y = np.mean(y_actual)
@@ -89,6 +94,23 @@ def plot_lin(data):
 	plt.xlabel('Iterations (Thousands)')
 	return plt
 
+# Exponential Plot
+def plot_exp(data):
+	x_values = [point[0] for point in data]
+	y_values = [point[1] for point in data]
+	params, covariance = curve_fit(exponential, x_values, y_values, maxfev = 2000)
+	a, b, c = params
+	x_fit = np.linspace(min(x_values), max(x_values), 100)
+	regression_line = exponential(x_fit, a, b, c)
+	r_squared = calculate_r_squared(y_values, regression_line)
+	equation = f'y = {a:.2f} * e^({b:.2f}x) + {c:.2f}'
+	plt.annotate(equation, xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
+	plt.annotate(f'R-squared: {r_squared:.2f}', xy=(0.5, 0.9), xycoords='axes fraction', ha='center', fontsize=10)
+	plt.scatter(x_values, y_values, label='Data Points')
+	plt.plot(x_fit, regression_line, color='red', label='Exponential Regression')
+	plt.xlabel('Iterations (Thousands)')
+	return plt
+
 def plot_helper(consequence, runs, show=True, save=True):
 	print(f"CONSEQUENCE: {consequence}r")
 	start_time = time.time()
@@ -98,8 +120,8 @@ def plot_helper(consequence, runs, show=True, save=True):
 	rewards = run[1]
 	times = run[2]
 	time_bound = 60
-	reward_bound = 50
-	reward_low = 30
+	reward_upper = max([r[1] for r in rewards]) + 1
+	reward_lower = min([r[1] for r in rewards]) - 1
 
 	# Rate Plot
 	plot = plot_sig(rates)
@@ -113,8 +135,8 @@ def plot_helper(consequence, runs, show=True, save=True):
 	plot.clf()
 
 	# Reward Plot
-	plot = plot_lin(rewards)
-	plot.ylim(reward_low, reward_bound)
+	plot = plot_exp(rewards)
+	plot.ylim(reward_lower, reward_upper)
 	plot.ylabel('Average Total Reward')
 	plot.title(f'Average Reward Based on Iterations ({consequence}r)')
 	if save:
