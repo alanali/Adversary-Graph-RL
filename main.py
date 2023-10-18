@@ -26,33 +26,35 @@ gamma = 0.7 # Discount factor
 g = {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5, 8, 9], 6: [6, 8, 9], 7: [7, 8, 9], 8: [8], 9: [9, 13], 10: [10], 11: [11, 12, 13], 12: [12], 13: [13, 14], 14: [14, 15, 16, 17, 18, 19], 15: [15, 20], 16: [16, 20], 17: [17, 21], 18: [18, 21], 19: [19, 21], 20: [20, 22], 21: [21, 22], 22: [22, 23, 24, 25], 23: [23], 24: [24, 27], 25: [25, 26, 27], 26: [26], 27: [27, 28], 28: [27, 28, 29], 29: [28, 29, 30, 32], 30: [29, 30, 31], 31: [30, 31], 32: [32]}
 
 def success_rate(alpha, gamma, graph, con, start, end, reps):
-	data = []
-	times = []
+	data, times, rewards = [], [], []
 	for r in reps:
-		count = 0
+		count, reward = 0, 0
 		start_time = time.time()
 		for i in range(100):
-			agent = QAgent(alpha, gamma, graph, consequence=con)
-			success = agent.training(start, end, r)
+			agent = QAgent(alpha, gamma, graph, consequence=con, random=True)
+			success = agent.training(start, end, r)[0]
 			if success:
 				count += 1
+				reward += agent.training(start, end, r)[1]
 		end_time = time.time()
 		t = end_time - start_time
-		print(f"Finished {r} iterations in {t:.2f} seconds")
+		print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
 		data.append([r/1000, count])
 		times.append([r/1000, t])
-	return data, times
+		if count != 0:
+			rewards.append([r/1000, reward/count])
+	print(rewards)
+	return data, rewards, times
 
 def sigmoid(x, L ,x0, k, b):
     y = L / (1 + np.exp(-k*(x-x0))) + b
     return y
 
-def calculate_r_squared(y_observed, y_predicted):
-	y_observed = np.array(y_observed)
-	y_predicted = np.array(y_predicted)
-	ss_total = np.sum((y_observed - np.mean(y_observed))**2)
-	ss_residual = np.sum((y_observed - y_predicted)**2)
-	r_squared = 1 - (ss_residual / ss_total)
+def calculate_r_squared(y_actual, y_predicted):
+	mean_y = np.mean(y_actual)
+	total_sum_squares = sum((y - mean_y) ** 2 for y in y_actual)
+	residual_sum_squares = sum((y_actual[i] - y_predicted[i]) ** 2 for i in range(len(y_actual)))
+	r_squared = 1 - (residual_sum_squares / total_sum_squares)
 	return r_squared
 
 # Sigmoid Plot
@@ -61,7 +63,7 @@ def plot_sig(data):
 	y_values = [point[1] for point in data]
 	initial_guesses = [max(y_values), np.median(x_values), 1, min(y_values)]
 	b = ([0, min(x_values), 0, 0], [100, max(x_values), 10, 5])
-	params, covariance = curve_fit(sigmoid, x_values, y_values, p0=initial_guesses, bounds=b)
+	params, covariance = curve_fit(sigmoid, x_values, y_values, p0=initial_guesses, bounds=b, maxfev=5000)
 	y_fit = sigmoid(x_values, *params)
 	equation = f'y = {params[0]:.2f} / (1 + exp(-{params[2]:.2f} * (x - {params[1]:.2f}))) + {params[3]:.2f}'
 	plt.annotate(equation, xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
@@ -69,6 +71,7 @@ def plot_sig(data):
 	plt.annotate(f'R-squared: {r_squared:.2f}', xy=(0.5, 0.9), xycoords='axes fraction', ha='center', fontsize=10)
 	plt.scatter(x_values, y_values, label='Data Points')
 	plt.plot(x_values, y_fit, color='red', label='Sigmoid Fit')
+	plt.xlabel('Iterations (Thousands)')
 	return plt
 
 # Linear Plot
@@ -83,182 +86,66 @@ def plot_lin(data):
 	plt.annotate(f'R-squared: {r_squared:.2f}', xy=(0.5, 0.9), xycoords='axes fraction', ha='center', fontsize=10)
 	plt.scatter(x_values, y_values, label='Data Points')
 	plt.plot(x_values, regression_line, color='red', label='Linear Regression')
+	plt.xlabel('Iterations (Thousands)')
 	return plt
 
-def small_iter():
-	runs = list(range(1000, 10001, 500))
+def plot_helper(consequence, runs, show=True, save=True):
+	print(f"CONSEQUENCE: {consequence}r")
+	start_time = time.time()
 
-	rate_plot, time_plot = None, None
+	run = success_rate(alpha, gamma, g, consequence, 1, 31, runs)
+	rates = run[0]
+	rewards = run[1]
+	times = run[2]
+	time_bound = 60
+	reward_bound = 50
+	reward_low = 30
 
-	normal = success_rate(alpha, gamma, g, 0, 1, 31, runs)
+	# Rate Plot
+	plot = plot_sig(rates)
+	plot.ylim(0, 100)
+	plot.ylabel('Success Rate (%)')
+	plot.title(f'Success Rate Based on Iterations ({consequence}r)')
+	if save:
+		plot.savefig(f'./Graphs/{consequence}_rate.png', dpi=1200)
+	if show:
+		plot.show()
+	plot.clf()
 
-	rate_plot = plot_sig(normal[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations')
-	rate_plot.savefig('./Graphs/zero_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
+	# Reward Plot
+	plot = plot_lin(rewards)
+	plot.ylim(reward_low, reward_bound)
+	plot.ylabel('Average Total Reward')
+	plot.title(f'Average Reward Based on Iterations ({consequence}r)')
+	if save:
+		plot.savefig(f'./Graphs/{consequence}_reward.png', dpi=1200)
+	if show:
+		plot.show()
+	plot.clf()
 
-	time_plot = plot_lin(normal[1])
-	time_plot.ylim(0, 20)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations')
-	time_plot.savefig('./Graphs/zero_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
+	# Time Plot
+	plot = plot_lin(times)
+	plot.ylim(0, time_bound)
+	plot.ylabel('Time (Seconds)')
+	plot.title(f'Algorithm Runtime Based on Iterations ({consequence}r)')
+	if save:
+		plot.savefig(f'./Graphs/{consequence}_time.png', dpi=1200)
+	if show:
+		plot.show()
+	plot.clf()
 
-
-	neg = success_rate(alpha, gamma, g, -1, 1, 31, runs)
-
-	rate_plot = plot_sig(neg[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations (-r)')
-	rate_plot.savefig('./Graphs/neg_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
-
-	time_plot = plot_lin(neg[1])
-	time_plot.ylim(0, 20)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations (-r)')
-	time_plot.savefig('./Graphs/neg_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
-
-
-	neg_frac = success_rate(alpha, gamma, g, -0.5, 1, 31, runs)
-
-	rate_plot = plot_sig(neg_frac[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations (-0.5r)')
-	rate_plot.savefig('./Graphs/neg_half_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
-
-	time_plot = plot_lin(neg_frac[1])
-	time_plot.ylim(0, 20)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations (-0.5r)')
-	time_plot.savefig('./Graphs/neg_half_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
+	end_time = time.time()
+	t = end_time - start_time
+	mins = t // 60
+	secs = t - mins * 60
+	print(f"Total Time: {mins:.0f}:{secs:02.0f}")
+	print()
 
 
-	neg_quart_frac = success_rate(alpha, gamma, g, -0.25, 1, 31, runs)
+def generate_graphs():
+	runs = list(range(5000, 25001, 1000))
+	cons = np.arange(1, -1.1, -0.5).tolist()
+	for c in cons:
+		plot_helper(c, runs, show=False)
 
-	rate_plot = plot_sig(neg_quart_frac[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations (-0.25r)')
-	rate_plot.savefig('./Graphs/neg_quart_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
-
-	time_plot = plot_lin(neg_quart_frac[1])
-	time_plot.ylim(0, 20)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations (-0.25r)')
-	time_plot.savefig('./Graphs/neg_quart_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
-
-def large_iter():
-	runs = list(range(1000, 35001, 1000))
-
-	rate_plot, time_plot = None, None
-
-	normal = success_rate(alpha, gamma, g, 0, 1, 31, runs)
-
-	rate_plot = plot_sig(normal[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations')
-	rate_plot.savefig('./Graphs/zero_full_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
-
-	time_plot = plot_lin(normal[1])
-	time_plot.ylim(0, 60)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations')
-	time_plot.savefig('./Graphs/zero_full_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
-
-
-	neg = success_rate(alpha, gamma, g, -1, 1, 31, runs)
-
-	rate_plot = plot_sig(neg[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations (-r)')
-	rate_plot.savefig('./Graphs/neg_full_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
-
-	time_plot = plot_lin(neg[1])
-	time_plot.ylim(0, 60)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations (-r)')
-	time_plot.savefig('./Graphs/neg_full_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
-
-
-	neg_frac = success_rate(alpha, gamma, g, -0.5, 1, 31, runs)
-
-	rate_plot = plot_sig(neg_frac[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations (-0.5r)')
-	rate_plot.savefig('./Graphs/neg_half__full_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
-
-	time_plot = plot_lin(neg_frac[1])
-	time_plot.ylim(0, 60)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations (-0.5r)')
-	time_plot.savefig('./Graphs/neg_half_full_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
-
-
-	neg_quart_frac = success_rate(alpha, gamma, g, -0.25, 1, 31, runs)
-
-	rate_plot = plot_sig(neg_quart_frac[0])
-	rate_plot.ylim(0, 100)
-	rate_plot.xlabel('Iterations (Thousands)')
-	rate_plot.ylabel('Success Rate (%)')
-	rate_plot.title('Success Rate Based on Iterations (-0.25r)')
-	rate_plot.savefig('./Graphs/neg_quart_full_rate.png', dpi=1200)
-	rate_plot.show()
-	rate_plot.clf()
-
-	time_plot = plot_lin(neg_quart_frac[1])
-	time_plot.ylim(0, 60)
-	time_plot.xlabel('Iterations (Thousands)')
-	time_plot.ylabel('Time (Seconds)')
-	time_plot.title('Algorithm Runtime Based on Iterations (-0.25r)')
-	time_plot.savefig('./Graphs/neg_quart_full_time.png', dpi=1200)
-	time_plot.show()
-	time_plot.clf()
-
-large_iter()
+generate_graphs()
