@@ -20,8 +20,8 @@ Example dictionary representation
 g = {1:[2, 3, 4], 2:[5], 3:[2], 4:[6, 7], 5:[], 6:[8, 9], 7:[10], 8:[], 9:[8], 10:[]}
 """
 
-alpha = 0.1 # Learning rate
-gamma = 0.7 # Discount factor
+alpha = 0.9 # Learning rate
+gamma = 0.8 # Discount factor
 
 g = {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5, 8, 9], 6: [6, 8, 9], 7: [7, 8, 9], 8: [8], 9: [9, 13], 10: [10], 11: [11, 12, 13], 12: [12], 13: [13, 14], 14: [14, 15, 16, 17, 18, 19], 15: [15, 20], 16: [16, 20], 17: [17, 21], 18: [18, 21], 19: [19, 21], 20: [20, 22], 21: [21, 22], 22: [22, 23, 24, 25], 23: [23], 24: [24, 27], 25: [25, 26, 27], 26: [26], 27: [27, 28], 28: [27, 28, 29], 29: [28, 29, 30, 32], 30: [29, 30, 31], 31: [30, 31], 32: [32]}
 
@@ -41,10 +41,7 @@ def success_rate(alpha, gamma, graph, con, start, end, reps):
 		print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
 		data.append([r/1000, count])
 		times.append([r/1000, t])
-		if count != 0:
-			rewards.append([r/1000, reward/count])
-		else:
-			rewards.append([r/1000, 0])
+		rewards.append([r/1000, reward])
 	print(rewards)
 	return data, rewards, times
 
@@ -67,8 +64,9 @@ def plot_sig(data):
 	x_values = [point[0] for point in data]
 	y_values = [point[1] for point in data]
 	initial_guesses = [max(y_values), np.median(x_values), 1, min(y_values)]
-	b = ([0, min(x_values), 0, 0], [100, max(x_values), 10, 5])
+	b = ([-1, min(x_values), 1, -1], [max(y_values), max(x_values), max(y_values)+1, 5])
 	params, covariance = curve_fit(sigmoid, x_values, y_values, p0=initial_guesses, bounds=b, maxfev=5000)
+
 	y_fit = sigmoid(x_values, *params)
 	equation = f'y = {params[0]:.2f} / (1 + exp(-{params[2]:.2f} * (x - {params[1]:.2f}))) + {params[3]:.2f}'
 	plt.annotate(equation, xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
@@ -98,7 +96,7 @@ def plot_lin(data):
 def plot_exp(data):
 	x_values = [point[0] for point in data]
 	y_values = [point[1] for point in data]
-	params, covariance = curve_fit(exponential, x_values, y_values, maxfev = 2000)
+	params, covariance = curve_fit(exponential, x_values, y_values, p0=(max(y_values) - min(y_values), 0, min(y_values)), maxfev = 5000)
 	a, b, c = params
 	x_fit = np.linspace(min(x_values), max(x_values), 100)
 	regression_line = exponential(x_fit, a, b, c)
@@ -119,9 +117,8 @@ def plot_helper(consequence, runs, show=True, save=True):
 	rates = run[0]
 	rewards = run[1]
 	times = run[2]
-	time_bound = 60
-	reward_upper = max([r[1] for r in rewards]) + 1
-	reward_lower = min([r[1] for r in rewards]) - 1
+	time_bound = 35
+	reward_upper = max([r[1] for r in rewards]) + 100
 
 	# Rate Plot
 	plot = plot_sig(rates)
@@ -135,8 +132,8 @@ def plot_helper(consequence, runs, show=True, save=True):
 	plot.clf()
 
 	# Reward Plot
-	plot = plot_exp(rewards)
-	plot.ylim(reward_lower, reward_upper)
+	plot = plot_sig(rewards)
+	plot.ylim(0, reward_upper)
 	plot.ylabel('Average Total Reward')
 	plot.title(f'Average Reward Based on Iterations ({consequence}r)')
 	if save:
@@ -165,9 +162,10 @@ def plot_helper(consequence, runs, show=True, save=True):
 
 
 def generate_graphs():
-	runs = list(range(5000, 25001, 1000))
+	runs = list(range(1000, 30001, 1000))
 	cons = np.arange(1, -1.1, -0.5).tolist()
 	for c in cons:
-		plot_helper(c, runs, show=False)
+		plot_helper(c, runs, show=False, save=True)
+
 
 generate_graphs()

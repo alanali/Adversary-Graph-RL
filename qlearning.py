@@ -2,6 +2,7 @@ import numpy as np
 import random
 
 MAX_RUNS = 32
+DESTINATION_REWARD = 100
 
 class QAgent():
     # Initialize alpha, gamma, rewards, and Q-values
@@ -47,12 +48,15 @@ class QAgent():
 					risks[x][y] = round(random.uniform(0, 1), 2)
 		return risks
 	
+	def update_alpha(self, iteration, max_iter):
+		self.alpha = max(0.1, self.alpha - (self.alpha / max_iter) * iteration)
+
 	def training(self, start_location, end_location, iterations):
 		rewards_new = np.copy(self.rewards)
-		rewards_new[end_location - 1, end_location - 1] = 100
+		rewards_new[end_location - 1, end_location - 1] = DESTINATION_REWARD
 		playable_actions = [np.where(rewards_new[i] > 0)[0] for i in range(self.size)]
 
-		for _ in range(iterations):
+		for i in range(iterations):
 			current_state = np.random.randint(0, self.size) 
 			if playable_actions[current_state].size > 0:
 				next_state = np.random.choice(playable_actions[current_state])
@@ -63,6 +67,7 @@ class QAgent():
 					risk = self.risks[current_state][next_state]
 				risk_reward = (1 - risk) * reward + risk * (reward * self.consequence)
 				TD = risk_reward + self.gamma * np.max(self.Q[next_state, :]) - self.Q[current_state, next_state]
+				self.update_alpha(i, iterations)
 				self.Q[current_state, next_state] += self.alpha * TD
 
 		return self.get_optimal_route(start_location, end_location, self.Q)
@@ -81,6 +86,8 @@ class QAgent():
 				risk = self.risks[current_state][next_state]
 				if chance < risk:
 					reward += self.rewards[current_state][next_state] * self.consequence
+				else:
+					reward += self.rewards[current_state][next_state]
 			else:
 				reward += self.rewards[current_state][next_state]
 			current_state = next_state
