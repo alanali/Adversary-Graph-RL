@@ -41,9 +41,48 @@ def success_rate(alpha, gamma, graph, con, start, end, reps):
 		print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
 		data.append([r/1000, count])
 		times.append([r/1000, t])
-		rewards.append([r/1000, reward])
-	print(rewards)
+		if count == 0:
+			rewards.append([r/1000, 0])
+		else:
+			rewards.append([r/1000, reward/count])
 	return data, rewards, times
+
+def reward_comp(alpha, gamma, graph, con, start, end, reps):
+	r_rewards, rewards = [], []
+	start_time = time.time()
+	for r in reps:
+		r_count, r_reward = 0, 0
+		count, reward = 0, 0
+		for i in range(20):
+			r_agent = QAgent(alpha, gamma, graph, consequence=con, random=True)
+			risks = r_agent.risks
+			reward_matrix = r_agent.rewards
+			r_ret = r_agent.training(start, end, r)
+
+			agent = QAgent(alpha, gamma, graph, consequence=1, rewards=reward_matrix)
+			ret = agent.training(start, end, r)
+			route = ret[2]
+			add = agent.route_reward(route, risks, con)
+			if ret[0]:
+				count += 1
+				reward += add
+			if r_ret[0]:
+				r_count += 1
+				r_reward += r_ret[1]
+		r_agent.reset_state(alpha, gamma)
+		agent.reset_state(alpha, gamma)
+		end_time = time.time()
+		t = end_time - start_time
+		print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
+		if r_count == 0:
+			r_rewards.append([r/1000, 0])
+		else:
+			r_rewards.append([r/1000, r_reward/r_count])
+		if count == 0:
+			rewards.append([r/1000, 0])
+		else:
+			rewards.append([r/1000, reward/count])
+	return r_rewards, rewards
 
 def sigmoid(x, L ,x0, k, b):
     y = L / (1 + np.exp(-k*(x-x0))) + b
@@ -118,7 +157,7 @@ def plot_helper(consequence, runs, show=True, save=True):
 	rewards = run[1]
 	times = run[2]
 	time_bound = 35
-	reward_upper = max([r[1] for r in rewards]) + 100
+	reward_upper = 50
 
 	# Rate Plot
 	plot = plot_sig(rates)
@@ -155,11 +194,44 @@ def plot_helper(consequence, runs, show=True, save=True):
 
 	end_time = time.time()
 	t = end_time - start_time
-	mins = t // 60
-	secs = t - mins * 60
+	print_time(t)
+
+def comp_helper(consequence, runs, show=True, save=True):
+	print(f"CONSEQUENCE: {consequence}r")
+	start_time = time.time()
+	run = reward_comp(alpha, gamma, g, consequence, 1, 31, runs)
+	r_rewards = np.array(run[0])
+	rewards = np.array(run[1])
+	plt.scatter(r_rewards[:, 0], r_rewards[:, 1], label='Risk')
+	plt.scatter(rewards[:, 0], rewards[:, 1], label='No Risk')
+	# Linear regression for r_rewards
+	r_slope, r_intercept = np.polyfit(r_rewards[:, 0], r_rewards[:, 1], 1)
+	r_regression_line = [r_slope * x + r_intercept for x in r_rewards[:, 0]]
+	plt.plot(r_rewards[:, 0], r_regression_line, color='blue', linestyle='--', label='Linear Regression (Risk)')
+	# Linear regression for rewards
+	slope, intercept = np.polyfit(rewards[:, 0], rewards[:, 1], 1)
+	regression_line = [slope * x + intercept for x in rewards[:, 0]]
+	plt.plot(rewards[:, 0], regression_line, color='orange', linestyle='--', label='Linear Regression (No Risk)')
+	plt.ylabel('Average Reward')
+	plt.xlabel('Iterations (Thousands)')
+	plt.title(f'Average Reward Based on Iterations ({consequence}r)')
+	plt.ylim(0, 30)
+	plt.legend()
+	if save:
+		plt.savefig(f'./Graphs/{consequence}_comp.png', dpi=1200)
+	if show:
+		plt.show()
+	plt.clf()
+
+	end_time = time.time()
+	t = end_time - start_time
+	print_time(t)
+
+def print_time(time):
+	mins = time // 60
+	secs = time - mins * 60
 	print(f"Total Time: {mins:.0f}:{secs:02.0f}")
 	print()
-
 
 def generate_graphs():
 	runs = list(range(1000, 30001, 1000))
@@ -167,5 +239,11 @@ def generate_graphs():
 	for c in cons:
 		plot_helper(c, runs, show=False, save=True)
 
+def comparison():
+	runs = list(range(10000, 30001, 1000))
+	cons = np.arange(0.5, -1.1, -0.5).tolist()
+	for c in cons:
+		comp_helper(c, runs, show=True, save=False)
 
-generate_graphs()
+# Running with new agent everytime
+comparison()

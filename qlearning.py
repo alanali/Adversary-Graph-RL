@@ -6,10 +6,13 @@ DESTINATION_REWARD = 100
 
 class QAgent():
     # Initialize alpha, gamma, rewards, and Q-values
-	def __init__(self, alpha, gamma, graph, Q=None, consequence=1, random=False, risks=None):
+	def __init__(self, alpha, gamma, graph, Q=None, consequence=1, random=False, risks=None, rewards=None):
 		self.gamma = gamma  
 		self.alpha = alpha
-		self.rewards = self.create_rewards_matrix(graph)
+		if rewards:
+			self.rewards = rewards
+		else:
+			self.rewards = self.create_rewards_matrix(graph)
 		self.size = len(self.rewards[0])
 		self.consequence = consequence
 		if random:
@@ -21,11 +24,15 @@ class QAgent():
 				self.risks = risks
 		else:
 			self.risks = risks
-		self.actions = list(range(self.size))
 		if Q is None:
 			self.Q = np.zeros((self.size, self.size))
 		else:
 			self.Q = Q
+
+	def reset_state(self, a, g):
+		self.gamma = g  
+		self.alpha = a
+		self.Q = np.zeros((self.size, self.size))
 
 	def create_rewards_matrix(self, graph):
 		matrix = [[0 for _ in range(len(graph))] for _ in range(len(graph))]
@@ -99,7 +106,24 @@ class QAgent():
 			success = False
 			reward = 0
 		# self.print_helper(start_location, end_location, route, success)
-		return success, reward
+		return success, reward, route
+
+	def route_reward(self, route, risks, consequence):
+		reward = 0
+		for i in range(len(route) - 1):
+			current_state = int(route[i]) - 1
+			next_state = int(route[i + 1]) - 1
+			risk = risks[current_state][next_state]
+			if consequence != 1:
+				chance = round(random.uniform(0, 1), 2)
+				risk = risks[current_state][next_state]
+				if chance < risk:
+					reward += self.rewards[current_state][next_state] * consequence
+				else:
+					reward += self.rewards[current_state][next_state]
+			else:
+				reward += self.rewards[current_state][next_state]
+		return reward
 
 	def print_helper(self, start, end, r, success):
 		if success:
