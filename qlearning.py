@@ -30,8 +30,8 @@ class QAgent():
 			self.Q = Q
 
 	def reset_state(self, a, g):
-		self.gamma = g  
 		self.alpha = a
+		self.gamma = g  
 		self.Q = np.zeros((self.size, self.size))
 
 	def create_rewards_matrix(self, graph):
@@ -133,8 +133,8 @@ class QAgent():
 			# if self.consequence != None:
 			# 	print("Risk Table:")
 			# 	self.print_matrix(self.risks)
-			print("Q-Table:")
-			self.print_matrix(self.Q)
+			# print("Q-Table:")
+			# self.print_matrix(self.Q)
 			print("Optimal path from", start, "to", str(end) + ":")
 			print(" -> ".join(r))
 		else:
