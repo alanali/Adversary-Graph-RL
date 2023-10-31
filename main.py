@@ -1,6 +1,6 @@
 from qlearning import QAgent
-from plot import PlotData
 from game import ManipulationAgent as MAgent
+from plot import PlotData
 
 """
 Example matrix representation
@@ -29,15 +29,4 @@ test_runs = list(range(1000, 10001, 1000))
 # PlotData.generate_graphs(g, alpha, gamma, test_runs, show=True, save=False)
 # PlotData.compare_graphs(g, alpha, gamma, test_runs, show=True, save=False)
 
-testing = QAgent(alpha, gamma, g, consequence=0, random=True)
-rewards = testing.rewards
-risks = testing.risks
-
-# No Manipulation
-test = testing.training(1, 31, 10000)
-success = test[0]
-reward = test[1]
-path = test[2]
-testing.print_helper(1, 31, path, success)
-
-MAgent.manipulate(rewards, risks, testing.consequence)
+PlotData.modified_graphs(g, alpha, gamma, many_runs, True, True)

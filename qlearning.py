@@ -73,7 +73,7 @@ class QAgent():
 				else:
 					risk = self.risks[current_state][next_state]
 				risk_reward = (1 - risk) * reward + risk * (reward * self.consequence)
-				TD = risk_reward + self.gamma * np.max(self.Q[next_state, :]) - self.Q[current_state, next_state]
+				TD = risk_reward + self.gamma * np.max(self.Q[next_state, :]) - self.Q[current_state][next_state]
 				self.update_alpha(i, iterations)
 				self.Q[current_state, next_state] += self.alpha * TD
 
