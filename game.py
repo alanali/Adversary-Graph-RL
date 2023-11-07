@@ -31,4 +31,4 @@ class ManipulationAgent():
 		for i in range(len(rewards)):
 			if rewards[i] != 0:
 				r.append(rewards[i] * (1 - risks[i]) + rewards[i] * risks[i] * consequence)
-		return -min(r)
+		return min(r)

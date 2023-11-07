@@ -260,17 +260,17 @@ class PlotData():
 		plt.clf()
 
 	def modified_helper(consequence, runs, graph, alpha, gamma, show=True, save=True):
-		normal = []
-		modified = []
-		normal_s = []
-		modified_s = []
+		normal = []			# Normal reward values
+		modified = []		# Modified reward values
+		normal_s = []		# Normal success rates
+		modified_s = []		# Modified success rates
 		for r in runs:
 			start_time = time.time()
 			normal_r = 0
 			modified_r = 0
 			normal_count = 0
 			modified_count = 0
-			for _ in range(20):
+			for _ in range(100):
 				# No modifications
 				initial = QAgent(alpha, gamma, graph, consequence=consequence, random=True)
 				rewards = initial.rewards
@@ -287,14 +287,18 @@ class PlotData():
 				modified_r += mod[1]
 				if mod[0]:
 					modified_count += 1
-			if normal_r >= 0:
-				normal.append([r/1000, normal_r/20])
-			if modified_r >= 0:
-				modified.append([r/1000, modified_r/20])
-			normal_s.append([r/1000, normal_count * 5])
-			modified_s.append([r/1000, modified_count * 5])
 			end_time = time.time()
 			t = end_time - start_time
+			if normal_r >= 0:
+				normal.append([r/1000, normal_r/100])
+			else:
+				normal.append([r/1000, 0])
+			if modified_r >= 0:
+				modified.append([r/1000, modified_r/100])
+			else:
+				modified.append([r/1000, 0])
+			normal_s.append([r/1000, normal_count])
+			modified_s.append([r/1000, modified_count])
 			print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
 		
 		plt = PlotData.plot_two_sig(normal, modified)
@@ -348,7 +352,7 @@ class PlotData():
 
 	@staticmethod
 	def modified_graphs(graph, alpha, gamma, runs, show, save):
-		cons = np.arange(0.5, -1.1, -0.5).tolist()
+		cons = np.arange(0, -2.1, -0.5).tolist()
 		for c in cons:
 			print(f"CONSEQUENCE: {c}r")
 			start_time = time.time()
