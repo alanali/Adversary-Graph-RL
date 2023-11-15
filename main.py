@@ -25,8 +25,9 @@ g = {1:[1, 2, 10, 11], 2: [2, 3, 4, 5, 6, 7], 3: [3, 8, 9], 4: [4, 8, 9], 5: [5,
 
 many_runs = list(range(1000, 30001, 1000))
 test_runs = list(range(1000, 10001, 1000))
+middle_runs = list(range(10000, 30001, 1000))
 
 # PlotData.generate_graphs(g, alpha, gamma, test_runs, show=True, save=False)
 # PlotData.compare_graphs(g, alpha, gamma, test_runs, show=True, save=False)
 
-PlotData.modified_graphs(g, alpha, gamma, many_runs, True, True)
+PlotData.compare_graphs(g, alpha, gamma, middle_runs, True, True)

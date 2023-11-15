@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 class PlotData():
-	def success_rate(alpha, gamma, graph, con, start, end, reps):
+	def run_algorithm(alpha, gamma, graph, con, start, end, reps):
 		data, times, rewards = [], [], []
 		for r in reps:
 			count, reward = 0, 0
@@ -25,7 +25,7 @@ class PlotData():
 			if count == 0:
 				rewards.append([r/1000, 0])
 			else:
-				rewards.append([r/1000, reward/count])
+				rewards.append([r/1000, reward/100])
 		return data, rewards, times
 
 	# Shortest path reward vs path when accounting for risks
@@ -147,19 +147,18 @@ class PlotData():
 		plt.annotate(equation1, xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
 		r_squared1 = PlotData.calculate_r_squared(y_values1, regression_line1)
 		plt.annotate(f'R-squared 1: {r_squared1:.2f}', xy=(0.5, 0.9), xycoords='axes fraction', ha='center', fontsize=10)
-		plt.scatter(x_values1, y_values1, label='Data Points 1')
-		plt.plot(x_values1, regression_line1, color='blue')
+		plt.scatter(x_values1, y_values1)
+		plt.plot(x_values1, regression_line1, color='blue', label='Without Risk Modification')
 
 		plt.annotate(equation2, xy=(0.5, 0.85), xycoords='axes fraction', ha='center', fontsize=10)
 		r_squared2 = PlotData.calculate_r_squared(y_values2, regression_line2)
 		plt.annotate(f'R-squared 2: {r_squared2:.2f}', xy=(0.5, 0.8), xycoords='axes fraction', ha='center', fontsize=10)
-		plt.scatter(x_values2, y_values2, label='Data Points 2')
-		plt.plot(x_values2, regression_line2, color='orange', label='Risk Modification')
+		plt.scatter(x_values2, y_values2)
+		plt.plot(x_values2, regression_line2, color='orange', label='With Risk Modification')
 
 		plt.xlabel('Iterations (Thousands)')
 		plt.legend(loc='lower right')
 		return plt
-
 
 	# Linear Plot
 	def plot_lin(data):
@@ -194,7 +193,7 @@ class PlotData():
 		return plt
 
 	def plot_helper(consequence, runs, graph, alpha, gamma, show=True, save=True):
-		run = PlotData.success_rate(alpha, gamma, graph, consequence, 1, 31, runs)
+		run = PlotData.run_algorithm(alpha, gamma, graph, consequence, 1, 31, runs)
 		rates = run[0]
 		rewards = run[1]
 		times = run[2]
@@ -238,20 +237,20 @@ class PlotData():
 		run = PlotData.reward_comp(alpha, gamma, graph, consequence, 1, 31, runs)
 		r_rewards = np.array(run[0])
 		rewards = np.array(run[1])
-		plt.scatter(r_rewards[:, 0], r_rewards[:, 1], label='Risk')
-		plt.scatter(rewards[:, 0], rewards[:, 1], label='No Risk')
+		plt.scatter(r_rewards[:, 0], r_rewards[:, 1], label='Known Risk')
+		plt.scatter(rewards[:, 0], rewards[:, 1], label='Unkown Risk')
 		# Linear regression for r_rewards
 		r_slope, r_intercept = np.polyfit(r_rewards[:, 0], r_rewards[:, 1], 1)
 		r_regression_line = [r_slope * x + r_intercept for x in r_rewards[:, 0]]
-		plt.plot(r_rewards[:, 0], r_regression_line, color='blue', linestyle='--', label='Linear Regression (Risk)')
+		plt.plot(r_rewards[:, 0], r_regression_line, color='blue', linestyle='--')
 		# Linear regression for rewards
 		slope, intercept = np.polyfit(rewards[:, 0], rewards[:, 1], 1)
 		regression_line = [slope * x + intercept for x in rewards[:, 0]]
-		plt.plot(rewards[:, 0], regression_line, color='orange', linestyle='--', label='Linear Regression (No Risk)')
+		plt.plot(rewards[:, 0], regression_line, color='orange', linestyle='--')
 		plt.ylabel('Average Reward')
 		plt.xlabel('Iterations (Thousands)')
 		plt.title(f'Average Reward Based on Iterations ({consequence}r)')
-		plt.ylim(0, 30)
+		plt.ylim(0, 40)
 		plt.legend()
 		if save:
 			plt.savefig(f'./Graphs/{consequence}_comp.png', dpi=1200)
@@ -260,48 +259,62 @@ class PlotData():
 		plt.clf()
 
 	def modified_helper(consequence, runs, graph, alpha, gamma, show=True, save=True):
-		normal = []			# Normal reward values
-		modified = []		# Modified reward values
-		normal_s = []		# Normal success rates
-		modified_s = []		# Modified success rates
+		rewards = []		# Normal average reward values
+		mod_rewards = []	# Modified average reward values
+		success = []		# Normal success rates
+		mod_sucess = []		# Modified success rates
+		times = []			# Normal average times
+		mod_times = []		# Modified average times
 		for r in runs:
 			start_time = time.time()
 			normal_r = 0
 			modified_r = 0
 			normal_count = 0
 			modified_count = 0
+			ntime = 0
+			mtime = 0
 			for _ in range(100):
 				# No modifications
+				t1 = time.time()
 				initial = QAgent(alpha, gamma, graph, consequence=consequence, random=True)
-				rewards = initial.rewards
-				risks = initial.risks
 				test = initial.training(1, 31, r)
+				t2 = time.time()
+
+				rewardtable = initial.rewards
+				risks = initial.risks
 				normal_r += test[1]
+				ntime += t2 - t1
 				if test[0]:
 					normal_count += 1
 
 				# Modified risks
-				new_risks = MAgent.manipulate(rewards, risks, initial.consequence)
-				new = QAgent(alpha, gamma, graph, consequence=consequence, risks=new_risks, rewards=rewards)
+				t1 = time.time()
+				new_risks = MAgent.manipulate(rewardtable, risks, initial.consequence)
+				new = QAgent(alpha, gamma, graph, consequence=consequence, risks=new_risks, rewards=rewardtable)
 				mod = new.training(1, 31, r)
+				t2 = time.time()
+
 				modified_r += mod[1]
+				mtime += t2 - t1
 				if mod[0]:
 					modified_count += 1
 			end_time = time.time()
 			t = end_time - start_time
 			if normal_r >= 0:
-				normal.append([r/1000, normal_r/100])
+				rewards.append([r/1000, normal_r/100])
 			else:
-				normal.append([r/1000, 0])
+				rewards.append([r/1000, 0])
 			if modified_r >= 0:
-				modified.append([r/1000, modified_r/100])
+				mod_rewards.append([r/1000, modified_r/100])
 			else:
-				modified.append([r/1000, 0])
-			normal_s.append([r/1000, normal_count])
-			modified_s.append([r/1000, modified_count])
+				mod_rewards.append([r/1000, 0])
+			success.append([r/1000, normal_count])
+			mod_sucess.append([r/1000, modified_count])
+			times.append([r/1000, ntime])
+			mod_times.append([r/1000, mtime])
 			print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
 		
-		plt = PlotData.plot_two_sig(normal, modified)
+		plt = PlotData.plot_two_sig(rewards, mod_rewards)
 
 		plt.ylabel('Average Reward')
 		plt.title(f'Average Reward After Risk Modification ({consequence}r)')
@@ -312,12 +325,22 @@ class PlotData():
 			plt.show()
 		plt.clf()
 
-		plt = PlotData.plot_two_sig(normal_s, modified_s)
+		plt = PlotData.plot_two_sig(success, mod_sucess)
 		plt.ylabel('Success Rate (%)')
 		plt.title(f'Success Rate with Risk Modification ({consequence}r)')
 		plt.ylim(0, 100)
 		if save:
 			plt.savefig(f'./Graphs/{consequence}_rate_mod.png', dpi=1200)
+		if show:
+			plt.show()
+		plt.clf()
+
+		plt = PlotData.plot_two_lin(times, mod_times)
+		plt.ylabel('Total Runtime Time (Seconds)')
+		plt.title(f'Runtime and Risk Modification ({consequence}r)')
+		plt.ylim(0, 40)
+		if save:
+			plt.savefig(f'./Graphs/{consequence}_time_mod.png', dpi=1200)
 		if show:
 			plt.show()
 		plt.clf()
@@ -352,7 +375,7 @@ class PlotData():
 
 	@staticmethod
 	def modified_graphs(graph, alpha, gamma, runs, show, save):
-		cons = np.arange(0, -2.1, -0.5).tolist()
+		cons = np.arange(0.5, -1.1, -0.5).tolist()
 		for c in cons:
 			print(f"CONSEQUENCE: {c}r")
 			start_time = time.time()

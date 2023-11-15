@@ -1,7 +1,7 @@
 import numpy as np
 import random
 
-MAX_RUNS = 32
+MAX_RUNS = 100
 DESTINATION_REWARD = 100
 
 class QAgent():
