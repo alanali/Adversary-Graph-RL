@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 class PlotData():
+	# Run the Q-learning algorithm, return success rates, total rewards, and runtimes
 	def run_algorithm(alpha, gamma, graph, con, start, end, reps):
-		data, times, rewards = [], [], []
+		success, times, rewards = [], [], []
 		for r in reps:
 			count, reward = 0, 0
 			start_time = time.time()
@@ -20,15 +21,15 @@ class PlotData():
 			end_time = time.time()
 			t = end_time - start_time
 			print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
-			data.append([r/1000, count])
+			success.append([r/1000, count])
 			times.append([r/1000, t])
 			if count == 0:
 				rewards.append([r/1000, 0])
 			else:
 				rewards.append([r/1000, reward/100])
-		return data, rewards, times
+		return success, rewards, times
 
-	# Shortest path reward vs path when accounting for risks
+	# Q-learning vs Risky Q-learning total reward values
 	def reward_comp(alpha, gamma, graph, con, start, end, reps):
 		r_rewards, rewards = [], []
 		start_time = time.time()
@@ -36,11 +37,13 @@ class PlotData():
 			r_count, r_reward = 0, 0
 			count, reward = 0, 0
 			for i in range(20):
+				# Risky Q-learning
 				r_agent = QAgent(alpha, gamma, graph, consequence=con, random=True)
 				risks = r_agent.risks
 				reward_matrix = r_agent.rewards
 				r_ret = r_agent.training(start, end, r)
-
+				
+				# Normal Q-learning (same reward matrix)
 				agent = QAgent(alpha, gamma, graph, consequence=1, rewards=reward_matrix)
 				ret = agent.training(start, end, r)
 				route = ret[2]
@@ -78,14 +81,13 @@ class PlotData():
 		r_squared = 1 - (residual_sum_squares / total_sum_squares)
 		return r_squared
 
-	# Sigmoid Plot
+	# Sigmoid plot
 	def plot_sig(data):
 		x_values = [point[0] for point in data]
 		y_values = [point[1] for point in data]
 		initial_guesses = [max(y_values), np.median(x_values), 1, min(y_values)]
 		b = ([-1, min(x_values), 1, -1], [max(y_values), max(x_values), max(y_values)+1, 5])
 		params, covariance = curve_fit(PlotData.sigmoid, x_values, y_values, p0=initial_guesses, bounds=b, maxfev=5000)
-
 		y_fit = PlotData.sigmoid(x_values, *params)
 		equation = f'y = {params[0]:.2f} / (1 + exp(-{params[2]:.2f} * (x - {params[1]:.2f}))) + {params[3]:.2f}'
 		plt.annotate(equation, xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
@@ -96,6 +98,7 @@ class PlotData():
 		plt.xlabel('Iterations (Thousands)')
 		return plt
 
+	# Double sigmoid plot
 	def plot_two_sig(data1, data2):
 		x_values1 = [point[0] for point in data1]
 		y_values1 = [point[1] for point in data1]
@@ -131,6 +134,22 @@ class PlotData():
 		plt.legend(loc='lower right')
 		return plt
 
+	# Linear plot
+	def plot_lin(data):
+		x_values = [point[0] for point in data]
+		y_values = [point[1] for point in data]
+		slope, intercept = np.polyfit(x_values, y_values, 1)
+		regression_line = [slope * x + intercept for x in x_values]
+		equation = f'y = {slope:.2f}x + {intercept:.2f}'
+		plt.annotate(equation, xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
+		r_squared = PlotData.calculate_r_squared(y_values, regression_line)
+		plt.annotate(f'R-squared: {r_squared:.2f}', xy=(0.5, 0.9), xycoords='axes fraction', ha='center', fontsize=10)
+		plt.scatter(x_values, y_values, label='Data Points')
+		plt.plot(x_values, regression_line, color='red', label='Linear Regression')
+		plt.xlabel('Iterations (Thousands)')
+		return plt
+
+	# Double linear plot
 	def plot_two_lin(data1, data2):
 		x_values1 = [point[0] for point in data1]
 		y_values1 = [point[1] for point in data1]
@@ -160,22 +179,7 @@ class PlotData():
 		plt.legend(loc='lower right')
 		return plt
 
-	# Linear Plot
-	def plot_lin(data):
-		x_values = [point[0] for point in data]
-		y_values = [point[1] for point in data]
-		slope, intercept = np.polyfit(x_values, y_values, 1)
-		regression_line = [slope * x + intercept for x in x_values]
-		equation = f'y = {slope:.2f}x + {intercept:.2f}'
-		plt.annotate(equation, xy=(0.5, 0.95), xycoords='axes fraction', ha='center', fontsize=10)
-		r_squared = PlotData.calculate_r_squared(y_values, regression_line)
-		plt.annotate(f'R-squared: {r_squared:.2f}', xy=(0.5, 0.9), xycoords='axes fraction', ha='center', fontsize=10)
-		plt.scatter(x_values, y_values, label='Data Points')
-		plt.plot(x_values, regression_line, color='red', label='Linear Regression')
-		plt.xlabel('Iterations (Thousands)')
-		return plt
-
-	# Exponential Plot
+	# Exponential plot
 	def plot_exp(data):
 		x_values = [point[0] for point in data]
 		y_values = [point[1] for point in data]
@@ -192,6 +196,7 @@ class PlotData():
 		plt.xlabel('Iterations (Thousands)')
 		return plt
 
+	# Run risky Q-learning, create graphs of success rate, average reward, runtime
 	def plot_helper(consequence, runs, graph, alpha, gamma, show=True, save=True):
 		run = PlotData.run_algorithm(alpha, gamma, graph, consequence, 1, 31, runs)
 		rates = run[0]
@@ -233,12 +238,13 @@ class PlotData():
 			plot.show()
 		plot.clf()
 
+	# Create graphs comparing Q-learning an risky Q-learning average reward values
 	def comp_helper(consequence, runs, graph, alpha, gamma, show=True, save=True):
 		run = PlotData.reward_comp(alpha, gamma, graph, consequence, 1, 31, runs)
 		r_rewards = np.array(run[0])
 		rewards = np.array(run[1])
-		plt.scatter(r_rewards[:, 0], r_rewards[:, 1], label='Known Risk')
-		plt.scatter(rewards[:, 0], rewards[:, 1], label='Unkown Risk')
+		plt.scatter(r_rewards[:, 0], r_rewards[:, 1], label='Risky Q-Learning')
+		plt.scatter(rewards[:, 0], rewards[:, 1], label='Q-Learning')
 		# Linear regression for r_rewards
 		r_slope, r_intercept = np.polyfit(r_rewards[:, 0], r_rewards[:, 1], 1)
 		r_regression_line = [r_slope * x + r_intercept for x in r_rewards[:, 0]]
@@ -250,7 +256,7 @@ class PlotData():
 		plt.ylabel('Average Reward')
 		plt.xlabel('Iterations (Thousands)')
 		plt.title(f'Average Reward Based on Iterations ({consequence}r)')
-		plt.ylim(0, 40)
+		plt.ylim(0, 30)
 		plt.legend()
 		if save:
 			plt.savefig(f'./Graphs/{consequence}_comp.png', dpi=1200)
@@ -258,6 +264,7 @@ class PlotData():
 			plt.show()
 		plt.clf()
 
+	# Create graphs comparing no risk modification and with risk modification
 	def modified_helper(consequence, runs, graph, alpha, gamma, show=True, save=True):
 		rewards = []		# Normal average reward values
 		mod_rewards = []	# Modified average reward values
@@ -313,7 +320,6 @@ class PlotData():
 			times.append([r/1000, ntime])
 			mod_times.append([r/1000, mtime])
 			print(f"Finished {r} iterations in {t:.2f} seconds ({r/t:.2f}/sec)")
-		
 		plt = PlotData.plot_two_sig(rewards, mod_rewards)
 
 		plt.ylabel('Average Reward')
@@ -345,12 +351,14 @@ class PlotData():
 			plt.show()
 		plt.clf()
 
+	# Helper for printing runtime in seconds into MM:SS format
 	def print_time(time):
 		mins = time // 60
 		secs = time - mins * 60
 		print(f"Total Time: {mins:.0f}:{secs:02.0f}")
 		print()
 
+	# Call function to generate risky Q-learning graphs
 	@staticmethod
 	def generate_graphs(graph, alpha, gamma, runs, show, save):
 		cons = np.arange(1, -1.1, -0.5).tolist()
@@ -362,9 +370,10 @@ class PlotData():
 			t = end_time - start_time
 			PlotData.print_time(t)
 
+	# Call function to generate graphs that compare risky Q-learning and Q-learning
 	@staticmethod
 	def compare_graphs(graph, alpha, gamma, runs, show, save):
-		cons = np.arange(0.5, -1.1, -0.5).tolist()
+		cons = np.arange(0, -1.1, -0.5).tolist()
 		for c in cons:
 			print(f"CONSEQUENCE: {c}r")
 			start_time = time.time()
@@ -373,6 +382,7 @@ class PlotData():
 			t = end_time - start_time
 			PlotData.print_time(t)
 
+	# Call function to generate graohs that compare risk modification and no risk modification
 	@staticmethod
 	def modified_graphs(graph, alpha, gamma, runs, show, save):
 		cons = np.arange(0.5, -1.1, -0.5).tolist()
