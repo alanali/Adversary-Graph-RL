@@ -8,7 +8,7 @@ Employs graph theory to model adversary moves within a strategic environment. An
 ![Modified Algorithm Performance](https://github.com/alanali/Reinforcement-Graph-Traversal/blob/main/Graphs/Comparisons/-0.5_comp.png?raw=true)
 
 ## Part 2: Risk Modification to Influence Adversary Decision Making
-An algorithm is implemented to negatively impact adversary decision making by modifiying risk values in the decision making graph to reduce the adversary's average reward and success rate of their decisions to reach an end goal.
+An algorithm is implemented to negatively impact adversary decision making by modifying risk values in the decision making graph to reduce the adversary's average reward and success rate of their decisions to reach an end goal.
 
 Disclaimer: Works best with the consequence value set to 0
 
