@@ -361,7 +361,7 @@ class PlotData():
 	# Call function to generate risky Q-learning graphs
 	@staticmethod
 	def generate_graphs(graph, alpha, gamma, runs, show, save):
-		cons = np.arange(1, -1.1, -0.5).tolist()
+		cons = np.arange(0.5, -1.1, -0.5).tolist()
 		for c in cons:
 			print(f"CONSEQUENCE: {c}r")
 			start_time = time.time()
