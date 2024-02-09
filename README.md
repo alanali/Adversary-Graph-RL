@@ -1,6 +1,6 @@
 # Decision Modeling Using Reinforcement Learning
 ## Part 1: Decision Graph Traversal Using Risky Q-Learning
-Employs graph theory to model adversary moves within a strategic environment. An improved Q-learning algorithm (Risky Q-learning) is imployed that takes into account rewards, risks, and different consequences to those risks associated with each move in the graph and chooses the most optimal path. Below is the decision making graph used:
+Employs graph theory to model adversary moves within a strategic environment. An improved Q-learning algorithm (Risky Q-learning) is implemented that takes into account rewards, risks, and different consequences to those risks associated with each move in the graph and chooses the most optimal path. Below is the decision making graph used:
 ![Decision Making Graph](https://github.com/alanali/Reinforcement-Graph-Traversal/blob/main/Decision%20Graphs/Full_graph.jpg?raw=true)
 
 
